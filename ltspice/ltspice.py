@@ -25,6 +25,7 @@ class Ltspice:
         self._variables = []  # variable list
         self._types     = []  # type list
         self._mode      = 'Transient'
+        self._double_precision = False
     
     def parse(self, dsamp=1):
         self.dsamp = dsamp
@@ -32,6 +33,13 @@ class Ltspice:
         tmp = b''
         lines = []
         line = ''
+        # number of bytes for each time variable
+        time_size = 8
+
+        #reset lists
+        self._variables = []  # variable list
+        self._types     = []  # type list
+        self._case_split_point = []
 
         with open(self.file_path, 'rb') as f:
             data = f.read()  # Binary data read
@@ -66,6 +74,14 @@ class Ltspice:
             if 'Variables:' in line:
                 vindex = index
 
+        if self.flags.count("double") is not 0:
+            self._double_precision = True
+        # number of bytes for each variable
+        var_size = 4
+        if self._double_precision :
+            var_size = 8
+
+
         for j in range(self._variable_num):
             vdata = lines[vindex + j + 1].split()
             self._variables.append(vdata[1])
@@ -85,17 +101,24 @@ class Ltspice:
             self.data_raw = np.reshape(self.data_raw, (self._point_num, self._variable_num))
 
         elif self._mode == 'Transient':
+            #calculate size of one row of the data (at one timepoint)
+            data_row_len = ((self._variable_num-1)  * var_size + time_size)
             #Check file length
-            expected_data_len = self._point_num * (self._variable_num + 1) * 4
+            expected_data_len = self._point_num * data_row_len
 
             if len(data) - bin_index == expected_data_len:
-                self.data_raw = np.frombuffer(data[bin_index:], dtype=np.float32)
+                if self._double_precision:
+                    self.data_raw = np.frombuffer(data[bin_index:], dtype=np.float64)
+                else:
+                    self.data_raw = np.frombuffer(data[bin_index:], dtype=np.float32)
                 self.time_raw = np.zeros(self._point_num)
                 for i in range(self._point_num):
-                    d = data[bin_index + i * (self._variable_num + 1) * 4: bin_index + i * (self._variable_num + 1) * 4 + 8]
+                    d = data[bin_index + i * data_row_len: bin_index + i * data_row_len + time_size]
                     self.time_raw[i] = struct.unpack('d', d)[0]
-
-            self.data_raw = np.reshape(np.array(self.data_raw), (self._point_num, self._variable_num + 1))
+            if self._double_precision:
+                self.data_raw = np.reshape(np.array(self.data_raw), (self._point_num, self._variable_num))
+            else:
+                self.data_raw = np.reshape(np.array(self.data_raw), (self._point_num, self._variable_num + 1))
 
         # Split cases
         self._case_num = 1
@@ -121,7 +144,7 @@ class Ltspice:
 
             variable_index = variables_lowered.index(variable.lower())
 
-            if self._mode == 'Transient':
+            if self._mode == 'Transient' and not self._double_precision:
                 variable_index += 1
 
             data = self.data_raw[self._case_split_point[case]:self._case_split_point[case + 1], variable_index]
