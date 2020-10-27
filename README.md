@@ -1,15 +1,21 @@
 # LTSpice data parsing library for python
 
-## Thanks to	[DongHoonPark](https://github.com/DongHoonPark)
+## Thanks to [DongHoonPark](https://github.com/DongHoonPark)
 ### changes in this fork:
 - double precision data parsing added: LTspice has an option to export data in 64-bit (double-precision)
 
 ## Installation
 
+first install the standard package from [DongHoonPark](https://github.com/DongHoonPark)
 ```sh
 $ pip install ltspice
 ```
-
+than go to the folder where the packages for python are saved:<br>
+in Windows: <br>
+"python_location"\Lib\site-packages\ltspice<br>
+and exchange the ltspice.py with the ltspice.py from this repo
+<br><br>
+or just copy the ltspice.py from this repo into your project 
 ## Usage
 
 ```python
